@@ -22,12 +22,15 @@ import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.RtpParticipant;
 import com.biasedbit.efflux.participant.SingleParticipantDatabase;
+import org.jboss.netty.channel.socket.DatagramChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.jboss.netty.util.HashedWheelTimer;
 
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -68,23 +71,35 @@ public class SingleParticipantSession extends AbstractRtpSession {
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                     RtpParticipant remoteParticipant) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, null);
+        this(id, payloadType, localParticipant, remoteParticipant, null, null,
+          new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                     RtpParticipant remoteParticipant, OrderedMemoryAwareThreadPoolExecutor executor) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, executor);
+        this(id, payloadType, localParticipant, remoteParticipant, null, executor,
+                  new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                     RtpParticipant remoteParticipant, HashedWheelTimer timer) {
-        this(id, payloadType, localParticipant, remoteParticipant, timer, null);
+        this(id, payloadType, localParticipant, remoteParticipant, timer, null,
+                  new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+    }
+  
+    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                    RtpParticipant remoteParticipant, HashedWheelTimer timer,
+                                    OrderedMemoryAwareThreadPoolExecutor executor)
+    {
+      this(id, payloadType, localParticipant, remoteParticipant, timer, null,
+                new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                     RtpParticipant remoteParticipant, HashedWheelTimer timer,
-                                    OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadType, localParticipant, timer, executor);
+                                    OrderedMemoryAwareThreadPoolExecutor executor,
+                                    DatagramChannelFactory channelFactory) {
+        super(id, payloadType, localParticipant, timer, executor, channelFactory);
         if (!remoteParticipant.isReceiver()) {
             throw new IllegalArgumentException("Remote participant must be a receiver (data & control addresses set)");
         }

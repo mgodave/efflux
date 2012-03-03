@@ -77,7 +77,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     // configuration defaults -----------------------------------------------------------------------------------------
 
     // TODO not working with USE_NIO = false
-    protected static final boolean USE_NIO = true;
     protected static final boolean DISCARD_OUT_OF_ORDER = true;
     protected static final int BANDWIDTH_LIMIT = 256;
     protected static final int SEND_BUFFER_SIZE = 1500;
@@ -94,7 +93,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     protected final HashedWheelTimer timer;
     protected final OrderedMemoryAwareThreadPoolExecutor executor;
     protected String host;
-    protected boolean useNio;
     protected boolean discardOutOfOrder;
     protected int bandwidthLimit;
     protected int sendBufferSize;
@@ -103,6 +101,7 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     protected boolean automatedRtcpHandling;
     protected boolean tryToUpdateOnEverySdes;
     protected int participantDatabaseCleanup;
+    protected final DatagramChannelFactory factory;
 
     // internal vars --------------------------------------------------------------------------------------------------
 
@@ -126,22 +125,8 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
 
     // constructors ---------------------------------------------------------------------------------------------------
 
-    public AbstractRtpSession(String id, int payloadType, RtpParticipant local) {
-        this(id, payloadType, local, null, null);
-    }
-
-    public AbstractRtpSession(String id, int payloadType, RtpParticipant local,
-                              HashedWheelTimer timer) {
-        this(id, payloadType, local, timer, null);
-    }
-
-    public AbstractRtpSession(String id, int payloadType, RtpParticipant local,
-                              OrderedMemoryAwareThreadPoolExecutor executor) {
-        this(id, payloadType, local, null, executor);
-    }
-
     public AbstractRtpSession(String id, int payloadType, RtpParticipant local, HashedWheelTimer timer,
-                              OrderedMemoryAwareThreadPoolExecutor executor) {
+                              OrderedMemoryAwareThreadPoolExecutor executor, DatagramChannelFactory channelFactory) {
         if ((payloadType < 0) || (payloadType > 127)) {
             throw new IllegalArgumentException("PayloadType must be in range [0;127]");
         }
@@ -150,6 +135,7 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
             throw new IllegalArgumentException("Local participant must have its data & control addresses set");
         }
 
+        this.factory = channelFactory;
         this.id = id;
         this.payloadType = payloadType;
         this.localParticipant = local;
@@ -173,7 +159,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
         this.sentPacketCounter = new AtomicLong(0);
         this.sentByteCounter = new AtomicLong(0);
 
-        this.useNio = USE_NIO;
         this.discardOutOfOrder = DISCARD_OUT_OF_ORDER;
         this.bandwidthLimit = BANDWIDTH_LIMIT;
         this.sendBufferSize = SEND_BUFFER_SIZE;
@@ -200,13 +185,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     public synchronized boolean init() {
         if (this.running.get()) {
             return true;
-        }
-
-        DatagramChannelFactory factory;
-        if (this.useNio) {
-            factory = new OioDatagramChannelFactory(Executors.newCachedThreadPool());
-        } else {
-            factory = new NioDatagramChannelFactory(Executors.newCachedThreadPool());
         }
 
         this.dataBootstrap = new ConnectionlessBootstrap(factory);
@@ -869,17 +847,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
             throw new IllegalArgumentException("Cannot modify property after initialisation");
         }
         this.host = host;
-    }
-
-    public boolean useNio() {
-        return useNio;
-    }
-
-    public void setUseNio(boolean useNio) {
-        if (this.running.get()) {
-            throw new IllegalArgumentException("Cannot modify property after initialisation");
-        }
-        this.useNio = useNio;
     }
 
     public boolean isDiscardOutOfOrder() {

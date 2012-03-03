@@ -20,8 +20,12 @@ import com.biasedbit.efflux.participant.DefaultParticipantDatabase;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.ParticipantEventListener;
 import com.biasedbit.efflux.participant.RtpParticipant;
+import org.jboss.netty.channel.socket.DatagramChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.jboss.netty.util.HashedWheelTimer;
+
+import java.util.concurrent.Executors;
 
 /**
  * A regular RTP session, as described in RFC3550.
@@ -35,22 +39,28 @@ public class MultiParticipantSession extends AbstractRtpSession implements Parti
     // constructors ---------------------------------------------------------------------------------------------------
 
     public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant) {
-        super(id, payloadType, localParticipant, null, null);
+        super(id, payloadType, localParticipant, null, null, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                    HashedWheelTimer timer) {
-        super(id, payloadType, localParticipant, timer, null);
+        super(id, payloadType, localParticipant, timer, null, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                    OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadType, localParticipant, null, executor);
+        super(id, payloadType, localParticipant, null, executor, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
     }
 
     public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
                                    HashedWheelTimer timer, OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadType, localParticipant, timer, executor);
+        super(id, payloadType, localParticipant, timer, executor, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+    }
+
+    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                   HashedWheelTimer timer, OrderedMemoryAwareThreadPoolExecutor executor,
+                                   DatagramChannelFactory channelFactory) {
+        super(id, payloadType, localParticipant, timer, executor, channelFactory);
     }
 
     // AbstractRtpSession ---------------------------------------------------------------------------------------------
