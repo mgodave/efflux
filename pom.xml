@@ -179,7 +179,7 @@
       </plugin>
 
       <!-- xref generation -->
-      <plugin>
+      <!--plugin>
         <artifactId>maven-jxr-plugin</artifactId>
         <executions>
           <execution>
@@ -201,7 +201,7 @@
           <windowTitle>${project.name} Source Xref (${project.version})</windowTitle>
           <lineLength>120</lineLength>
         </configuration>
-      </plugin>
+      </plugin-->
 
       <!-- attach sources -->
       <plugin>
