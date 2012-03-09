@@ -103,9 +103,12 @@ public class RtpParticipant {
     }
 
     public static RtpParticipant createFromUnexpectedDataPacket(SocketAddress origin, DataPacket packet) {
-        RtpParticipant participant = new RtpParticipant(new RtpParticipantInfo());
+        RtpParticipant participant = new RtpParticipant(new RtpParticipantInfo(packet.getSsrc()));
         participant.lastDataOrigin = origin;
-        participant.getInfo().setSsrc(packet.getSsrc());
+//        participant.lastSequenceNumber = packet.getSequenceNumber();
+//        participant.lastReceptionInstant = TimeUtils.now();
+//        participant.receivedByteCounter.addAndGet(packet.getDataSize());
+//        participant.receivedPacketCounter.incrementAndGet();
 
         return participant;
     }

@@ -17,24 +17,8 @@
 package com.biasedbit.efflux.session;
 
 import com.biasedbit.efflux.logging.Logger;
-import com.biasedbit.efflux.network.ControlHandler;
-import com.biasedbit.efflux.network.ControlPacketDecoder;
-import com.biasedbit.efflux.network.ControlPacketEncoder;
-import com.biasedbit.efflux.network.DataHandler;
-import com.biasedbit.efflux.network.DataPacketDecoder;
-import com.biasedbit.efflux.network.DataPacketEncoder;
-import com.biasedbit.efflux.packet.AbstractReportPacket;
-import com.biasedbit.efflux.packet.AppDataPacket;
-import com.biasedbit.efflux.packet.ByePacket;
-import com.biasedbit.efflux.packet.CompoundControlPacket;
-import com.biasedbit.efflux.packet.ControlPacket;
-import com.biasedbit.efflux.packet.DataPacket;
-import com.biasedbit.efflux.packet.ReceiverReportPacket;
-import com.biasedbit.efflux.packet.ReceptionReport;
-import com.biasedbit.efflux.packet.SdesChunk;
-import com.biasedbit.efflux.packet.SdesChunkItems;
-import com.biasedbit.efflux.packet.SenderReportPacket;
-import com.biasedbit.efflux.packet.SourceDescriptionPacket;
+import com.biasedbit.efflux.network.*;
+import com.biasedbit.efflux.packet.*;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.ParticipantOperation;
 import com.biasedbit.efflux.participant.RtpParticipant;
@@ -46,8 +30,6 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.FixedReceiveBufferSizePredictorFactory;
 import org.jboss.netty.channel.socket.DatagramChannel;
 import org.jboss.netty.channel.socket.DatagramChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
-import org.jboss.netty.channel.socket.oio.OioDatagramChannelFactory;
 import org.jboss.netty.handler.execution.ExecutionHandler;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.jboss.netty.util.HashedWheelTimer;
@@ -58,7 +40,6 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -229,8 +210,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
             this.dataChannel = (DatagramChannel) this.dataBootstrap.bind(dataAddress);
         } catch (Exception e) {
             LOG.error("Failed to bind data channel for session with id " + this.id, e);
-            this.dataBootstrap.releaseExternalResources();
-            this.controlBootstrap.releaseExternalResources();
             return false;
         }
         try {
@@ -238,8 +217,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
         } catch (Exception e) {
             LOG.error("Failed to bind control channel for session with id " + this.id, e);
             this.dataChannel.close();
-            this.dataBootstrap.releaseExternalResources();
-            this.controlBootstrap.releaseExternalResources();
             return false;
         }
 
