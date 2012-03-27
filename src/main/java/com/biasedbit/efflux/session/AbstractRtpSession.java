@@ -777,8 +777,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
         this.leaveSession(this.localParticipant.getSsrc(), "Session terminated.");
         this.controlChannel.close();
 
-        this.dataBootstrap.releaseExternalResources();
-        this.controlBootstrap.releaseExternalResources();
         LOG.debug("RtpSession with id {} terminated.", this.id);
 
         for (RtpSessionEventListener listener : this.eventListeners) {
