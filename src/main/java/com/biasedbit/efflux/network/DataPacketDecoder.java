@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
  */
-public class DataPacketDecoder extends OneToOneDecoder {
+class DataPacketDecoder extends OneToOneDecoder {
 
     // constants ------------------------------------------------------------------------------------------------------
 

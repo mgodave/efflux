@@ -22,6 +22,7 @@ import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.RtpParticipant;
 import com.biasedbit.efflux.participant.SingleParticipantDatabase;
+import com.google.common.base.Preconditions;
 import org.jboss.netty.channel.socket.DatagramChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
@@ -44,7 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p/>
  * If more than one source is used to send data for this session it will often get "confused" and keep redirecting
  * packets to the last source from which it received.
- * <p>
+ * <p/>
  * This is <strong>NOT</strong> a fully RFC 3550 compliant implementation, but rather a special purpose one for very
  * specific scenarios.
  *
@@ -52,197 +53,194 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SingleParticipantSession extends AbstractRtpSession {
 
-    // configuration defaults -----------------------------------------------------------------------------------------
+  // configuration defaults -----------------------------------------------------------------------------------------
 
-    private static final boolean SEND_TO_LAST_ORIGIN = true;
-    private static final boolean IGNORE_FROM_UNKNOWN_SSRC = true;
+  private static final boolean SEND_TO_LAST_ORIGIN = true;
+  private static final boolean IGNORE_FROM_UNKNOWN_SSRC = true;
 
-    // configuration --------------------------------------------------------------------------------------------------
+  // configuration --------------------------------------------------------------------------------------------------
 
-    private final RtpParticipant receiver;
-    private boolean sendToLastOrigin;
-    private boolean ignoreFromUnknownSsrc;
+  private final RtpParticipant receiver;
+  private boolean sendToLastOrigin;
+  private boolean ignoreFromUnknownSsrc;
 
-    // internal vars --------------------------------------------------------------------------------------------------
+  // internal vars --------------------------------------------------------------------------------------------------
 
-    private final AtomicBoolean receivedPackets;
+  private final AtomicBoolean receivedPackets;
 
-    // constructors ---------------------------------------------------------------------------------------------------
+  // constructors ---------------------------------------------------------------------------------------------------
 
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, null,
-          new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                  RtpParticipant remoteParticipant) {
+    this(id, payloadType, localParticipant, remoteParticipant, null, null,
+      new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  }
+
+  public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                  RtpParticipant remoteParticipant, OrderedMemoryAwareThreadPoolExecutor executor) {
+    this(id, payloadType, localParticipant, remoteParticipant, null, executor,
+      new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  }
+
+  public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                  RtpParticipant remoteParticipant, HashedWheelTimer timer) {
+    this(id, payloadType, localParticipant, remoteParticipant, timer, null,
+      new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  }
+
+  public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                  RtpParticipant remoteParticipant, HashedWheelTimer timer,
+                                  OrderedMemoryAwareThreadPoolExecutor executor) {
+    this(id, payloadType, localParticipant, remoteParticipant, timer, null,
+      new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  }
+
+  public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                  RtpParticipant remoteParticipant, HashedWheelTimer timer,
+                                  OrderedMemoryAwareThreadPoolExecutor executor,
+                                  DatagramChannelFactory channelFactory) {
+    super(id, payloadType, localParticipant, timer, executor, channelFactory);
+    Preconditions.checkArgument(!remoteParticipant.isReceiver(), "Remote participant must be a receiver (data & control addresses set)");
+    ((SingleParticipantDatabase) this.participantDatabase).setParticipant(remoteParticipant);
+    this.receiver = remoteParticipant;
+    this.receivedPackets = new AtomicBoolean(false);
+    this.sendToLastOrigin = SEND_TO_LAST_ORIGIN;
+    this.ignoreFromUnknownSsrc = IGNORE_FROM_UNKNOWN_SSRC;
+  }
+
+  // RtpSession -----------------------------------------------------------------------------------------------------
+
+  @Override
+  public boolean addReceiver(RtpParticipant remoteParticipant) {
+    if (this.receiver.equals(remoteParticipant)) {
+      return true;
     }
 
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, OrderedMemoryAwareThreadPoolExecutor executor) {
-        this(id, payloadType, localParticipant, remoteParticipant, null, executor,
-                  new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+    // Sorry, "there can be only one".
+    return false;
+  }
+
+  @Override
+  public boolean removeReceiver(RtpParticipant remoteParticipant) {
+    // No can do.
+    return false;
+  }
+
+  @Override
+  public RtpParticipant getRemoteParticipant(long ssrc) {
+    if (ssrc == this.receiver.getInfo().getSsrc()) {
+      return this.receiver;
     }
 
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, HashedWheelTimer timer) {
-        this(id, payloadType, localParticipant, remoteParticipant, timer, null,
-                  new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+    return null;
+  }
+
+  @Override
+  public Map<Long, RtpParticipant> getRemoteParticipants() {
+    Map<Long, RtpParticipant> map = new HashMap<Long, RtpParticipant>();
+    map.put(this.receiver.getSsrc(), this.receiver);
+    return map;
+  }
+
+  // AbstractRtpSession ---------------------------------------------------------------------------------------------
+
+  @Override
+  protected ParticipantDatabase createDatabase() {
+    return new SingleParticipantDatabase(this.id);
+  }
+
+  @Override
+  protected void internalSendData(DataPacket packet) {
+    try {
+      // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
+      // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
+      // workaround that will work if the other end doesn't support ICE and is behind a NAT.
+      SocketAddress destination;
+      if (this.sendToLastOrigin && (this.receiver.getLastDataOrigin() != null)) {
+        destination = this.receiver.getLastDataOrigin();
+      } else {
+        destination = this.receiver.getDataDestination();
+      }
+      this.writeToData(packet, destination);
+      this.sentOrReceivedPackets.set(true);
+    } catch (Exception e) {
+      LOG.error("Failed to send {} to {} in session with id {}.", this.id, this.receiver.getInfo());
     }
-  
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, HashedWheelTimer timer,
-                                    OrderedMemoryAwareThreadPoolExecutor executor)
-    {
-      this(id, payloadType, localParticipant, remoteParticipant, timer, null,
-                new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  }
+
+  @Override
+  protected void internalSendControl(ControlPacket packet) {
+    try {
+      // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
+      // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
+      // workaround that will work if the other end doesn't support ICE and is behind a NAT.
+      SocketAddress destination;
+      if (this.sendToLastOrigin && (this.receiver.getLastControlOrigin() != null)) {
+        destination = this.receiver.getLastControlOrigin();
+      } else {
+        destination = this.receiver.getControlDestination();
+      }
+      this.writeToControl(packet, destination);
+      this.sentOrReceivedPackets.set(true);
+    } catch (Exception e) {
+      LOG.error("Failed to send RTCP packet to {} in session with id {}.",
+        this.receiver.getInfo(), this.id);
     }
+  }
 
-    public SingleParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                    RtpParticipant remoteParticipant, HashedWheelTimer timer,
-                                    OrderedMemoryAwareThreadPoolExecutor executor,
-                                    DatagramChannelFactory channelFactory) {
-        super(id, payloadType, localParticipant, timer, executor, channelFactory);
-        if (!remoteParticipant.isReceiver()) {
-            throw new IllegalArgumentException("Remote participant must be a receiver (data & control addresses set)");
-        }
-        ((SingleParticipantDatabase) this.participantDatabase).setParticipant(remoteParticipant);
-        this.receiver = remoteParticipant;
-        this.receivedPackets = new AtomicBoolean(false);
-        this.sendToLastOrigin = SEND_TO_LAST_ORIGIN;
-        this.ignoreFromUnknownSsrc = IGNORE_FROM_UNKNOWN_SSRC;
+  @Override
+  protected void internalSendControl(CompoundControlPacket packet) {
+    try {
+      this.writeToControl(packet, this.receiver.getControlDestination());
+      this.sentOrReceivedPackets.set(true);
+    } catch (Exception e) {
+      LOG.error("Failed to send compound RTCP packet to {} in session with id {}.",
+        this.receiver.getInfo(), this.id);
     }
+  }
 
-    // RtpSession -----------------------------------------------------------------------------------------------------
+  // DataPacketReceiver ---------------------------------------------------------------------------------------------
 
-    @Override
-    public boolean addReceiver(RtpParticipant remoteParticipant) {
-        if (this.receiver.equals(remoteParticipant)) {
-            return true;
-        }
-
-        // Sorry, "there can be only one".
-        return false;
-    }
-
-    @Override
-    public boolean removeReceiver(RtpParticipant remoteParticipant) {
-        // No can do.
-        return false;
-    }
-
-    @Override
-    public RtpParticipant getRemoteParticipant(long ssrc) {
-        if (ssrc == this.receiver.getInfo().getSsrc()) {
-            return this.receiver;
-        }
-
-        return null;
-    }
-
-    @Override
-    public Map<Long, RtpParticipant> getRemoteParticipants() {
-        Map<Long, RtpParticipant> map = new HashMap<Long, RtpParticipant>();
-        map.put(this.receiver.getSsrc(), this.receiver);
-        return map;
-    }
-
-    // AbstractRtpSession ---------------------------------------------------------------------------------------------
-
-    @Override
-    protected ParticipantDatabase createDatabase() {
-        return new SingleParticipantDatabase(this.id);
-    }
-
-    @Override
-    protected void internalSendData(DataPacket packet) {
-        try {
-            // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
-            // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
-            // workaround that will work if the other end doesn't support ICE and is behind a NAT.
-            SocketAddress destination;
-            if (this.sendToLastOrigin && (this.receiver.getLastDataOrigin() != null)) {
-                destination = this.receiver.getLastDataOrigin();
-            } else {
-                destination = this.receiver.getDataDestination();
-            }
-            this.writeToData(packet, destination);
-            this.sentOrReceivedPackets.set(true);
-        } catch (Exception e) {
-            LOG.error("Failed to send {} to {} in session with id {}.", this.id, this.receiver.getInfo());
-        }
+  @Override
+  public void dataPacketReceived(SocketAddress origin, DataPacket packet) {
+    if (!this.receivedPackets.getAndSet(true)) {
+      // If this is the first packet then setup the SSRC for this participant (we didn't know it yet).
+      this.receiver.getInfo().setSsrc(packet.getSsrc());
+      LOG.trace("First packet received from remote source, updated SSRC to {}.", packet.getSsrc());
+    } else if (this.ignoreFromUnknownSsrc && (packet.getSsrc() != this.receiver.getInfo().getSsrc())) {
+      LOG.trace("Discarded packet from unexpected SSRC: {} (expected was {}).",
+        packet.getSsrc(), this.receiver.getInfo().getSsrc());
+      return;
     }
 
-    @Override
-    protected void internalSendControl(ControlPacket packet) {
-        try {
-            // This assumes that the sender is sending is sending from the same ports where its expecting to receive.
-            // Can be dangerous if the other end fully respects the RFC and supports ICE, but this is nearly the only
-            // workaround that will work if the other end doesn't support ICE and is behind a NAT.
-            SocketAddress destination;
-            if (this.sendToLastOrigin && (this.receiver.getLastControlOrigin() != null)) {
-                destination = this.receiver.getLastControlOrigin();
-            } else {
-                destination = this.receiver.getControlDestination();
-            }
-            this.writeToControl(packet, destination);
-            this.sentOrReceivedPackets.set(true);
-        } catch (Exception e) {
-            LOG.error("Failed to send RTCP packet to {} in session with id {}.",
-                      this.receiver.getInfo(), this.id);
-        }
+    super.dataPacketReceived(origin, packet);
+  }
+
+  // getters & setters ----------------------------------------------------------------------------------------------
+
+  public RtpParticipant getRemoteParticipant() {
+    return this.receiver;
+  }
+
+  public boolean isSendToLastOrigin() {
+    return sendToLastOrigin;
+  }
+
+  public void setSendToLastOrigin(boolean sendToLastOrigin) {
+    if (this.running.get()) {
+      throw new IllegalArgumentException("Cannot modify property after initialisation");
     }
+    this.sendToLastOrigin = sendToLastOrigin;
+  }
 
-    @Override
-    protected void internalSendControl(CompoundControlPacket packet) {
-        try {
-            this.writeToControl(packet, this.receiver.getControlDestination());
-            this.sentOrReceivedPackets.set(true);
-        } catch (Exception e) {
-            LOG.error("Failed to send compound RTCP packet to {} in session with id {}.",
-                      this.receiver.getInfo(), this.id);
-        }
+  public boolean isIgnoreFromUnknownSsrc() {
+    return ignoreFromUnknownSsrc;
+  }
+
+  public void setIgnoreFromUnknownSsrc(boolean ignoreFromUnknownSsrc) {
+    if (this.running.get()) {
+      throw new IllegalArgumentException("Cannot modify property after initialisation");
     }
-
-    // DataPacketReceiver ---------------------------------------------------------------------------------------------
-
-    @Override
-    public void dataPacketReceived(SocketAddress origin, DataPacket packet) {
-        if (!this.receivedPackets.getAndSet(true)) {
-            // If this is the first packet then setup the SSRC for this participant (we didn't know it yet).
-            this.receiver.getInfo().setSsrc(packet.getSsrc());
-            LOG.trace("First packet received from remote source, updated SSRC to {}.", packet.getSsrc());
-        } else if (this.ignoreFromUnknownSsrc && (packet.getSsrc() != this.receiver.getInfo().getSsrc())) {
-            LOG.trace("Discarded packet from unexpected SSRC: {} (expected was {}).",
-                      packet.getSsrc(), this.receiver.getInfo().getSsrc());
-            return;
-        }
-
-        super.dataPacketReceived(origin, packet);
-    }
-
-    // getters & setters ----------------------------------------------------------------------------------------------
-
-    public RtpParticipant getRemoteParticipant() {
-        return this.receiver;
-    }
-
-    public boolean isSendToLastOrigin() {
-        return sendToLastOrigin;
-    }
-
-    public void setSendToLastOrigin(boolean sendToLastOrigin) {
-        if (this.running.get()) {
-            throw new IllegalArgumentException("Cannot modify property after initialisation");
-        }
-        this.sendToLastOrigin = sendToLastOrigin;
-    }
-
-    public boolean isIgnoreFromUnknownSsrc() {
-        return ignoreFromUnknownSsrc;
-    }
-
-    public void setIgnoreFromUnknownSsrc(boolean ignoreFromUnknownSsrc) {
-        if (this.running.get()) {
-            throw new IllegalArgumentException("Cannot modify property after initialisation");
-        }
-        this.ignoreFromUnknownSsrc = ignoreFromUnknownSsrc;
-    }
+    this.ignoreFromUnknownSsrc = ignoreFromUnknownSsrc;
+  }
 }

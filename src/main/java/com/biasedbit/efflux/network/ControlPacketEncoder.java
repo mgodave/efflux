@@ -35,7 +35,7 @@ import java.util.List;
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
  */
 @ChannelHandler.Sharable
-public class ControlPacketEncoder implements ChannelDownstreamHandler {
+class ControlPacketEncoder implements ChannelDownstreamHandler {
 
     // constants ------------------------------------------------------------------------------------------------------
 

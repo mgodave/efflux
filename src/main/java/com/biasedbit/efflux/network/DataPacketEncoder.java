@@ -27,7 +27,7 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
  */
 @ChannelHandler.Sharable
-public class DataPacketEncoder extends OneToOneEncoder {
+class DataPacketEncoder extends OneToOneEncoder {
 
     // constructors ---------------------------------------------------------------------------------------------------
 

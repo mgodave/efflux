@@ -33,7 +33,7 @@ import java.util.List;
 /**
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
  */
-public class ControlPacketDecoder implements ChannelUpstreamHandler {
+class ControlPacketDecoder implements ChannelUpstreamHandler {
 
     // constants ------------------------------------------------------------------------------------------------------
 

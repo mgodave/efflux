@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
  */
-public class ControlHandler extends SimpleChannelUpstreamHandler {
+class ControlHandler extends SimpleChannelUpstreamHandler {
 
     // constants ------------------------------------------------------------------------------------------------------
 
