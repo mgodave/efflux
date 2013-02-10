@@ -16,7 +16,8 @@
 
 package com.biasedbit.efflux.session;
 
-import com.biasedbit.efflux.network.*;
+import com.biasedbit.efflux.network.ControlChannelPipelineFactory;
+import com.biasedbit.efflux.network.DataChannelPipelineFactory;
 import com.biasedbit.efflux.packet.*;
 import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.ParticipantOperation;
@@ -25,11 +26,13 @@ import com.biasedbit.efflux.participant.RtpParticipantInfo;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import org.jboss.netty.bootstrap.ConnectionlessBootstrap;
-import org.jboss.netty.channel.*;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.FixedReceiveBufferSizePredictorFactory;
 import org.jboss.netty.channel.socket.DatagramChannelFactory;
-  import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
-import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
 import org.jboss.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,13 +70,12 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
   protected static final int MAX_COLLISIONS_BEFORE_CONSIDERING_LOOP = 3;
   protected static final boolean AUTOMATED_RTCP_HANDLING = true;
   protected static final boolean TRY_TO_UPDATE_ON_EVERY_SDES = true;
-  protected static final int PARTICIPANT_DATABASE_CLEANUP = 10;
 
   // configuration --------------------------------------------------------------------------------------------------
 
   protected final String id;
   protected final int payloadType;
-  protected final HashedWheelTimer timer;
+  protected final Timer timer;
   protected final OrderedMemoryAwareThreadPoolExecutor executor;
   protected String host;
   protected boolean discardOutOfOrder = DISCARD_OUT_OF_ORDER;
@@ -83,7 +85,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
   protected int maxCollisionsBeforeConsideringLoop = MAX_COLLISIONS_BEFORE_CONSIDERING_LOOP;
   protected boolean automatedRtcpHandling = AUTOMATED_RTCP_HANDLING;
   protected boolean tryToUpdateOnEverySdes = TRY_TO_UPDATE_ON_EVERY_SDES;
-  protected int participantDatabaseCleanup = PARTICIPANT_DATABASE_CLEANUP;
   protected final DatagramChannelFactory factory;
 
   // internal vars --------------------------------------------------------------------------------------------------
@@ -107,7 +108,7 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
 
   // constructors ---------------------------------------------------------------------------------------------------
 
-  public AbstractRtpSession(@Nonnull String id, int payloadType, @Nonnull RtpParticipant local, @Nonnull HashedWheelTimer timer,
+  public AbstractRtpSession(@Nonnull String id, int payloadType, @Nonnull RtpParticipant local, @Nonnull Timer timer,
                             @Nonnull OrderedMemoryAwareThreadPoolExecutor executor, @Nonnull DatagramChannelFactory channelFactory) {
 
     checkArgument((payloadType > 0) || (payloadType < 127), "PayloadType must be in range [0;127]");
@@ -182,19 +183,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     // Send first RTCP packet.
     joinSession(localParticipant.getSsrc());
     running.set(true);
-
-    // Add the cleaner.
-    this.timer.newTimeout(new TimerTask() {
-      @Override
-      public void run(Timeout timeout) throws Exception {
-        if (!running.get()) {
-          return;
-        }
-
-        participantDatabase.cleanup();
-        timer.newTimeout(this, participantDatabaseCleanup, TimeUnit.SECONDS);
-      }
-    }, this.participantDatabaseCleanup, TimeUnit.SECONDS);
 
     // Add the RTCP generator.
     if (this.automatedRtcpHandling) {
@@ -860,14 +848,8 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     return this.sentPacketCounter.get();
   }
 
-  public int getParticipantDatabaseCleanup() {
-    return participantDatabaseCleanup;
+  protected Timer getTimer() {
+    return timer;
   }
 
-  public void setParticipantDatabaseCleanup(int participantDatabaseCleanup) {
-    if (this.running.get()) {
-      throw new IllegalArgumentException("Cannot modify property after initialisation");
-    }
-    this.participantDatabaseCleanup = participantDatabaseCleanup;
-  }
 }

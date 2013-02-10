@@ -21,75 +21,53 @@ import com.biasedbit.efflux.participant.ParticipantDatabase;
 import com.biasedbit.efflux.participant.ParticipantEventListener;
 import com.biasedbit.efflux.participant.RtpParticipant;
 import org.jboss.netty.channel.socket.DatagramChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioDatagramChannelFactory;
 import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 import org.jboss.netty.util.HashedWheelTimer;
 
-import java.util.concurrent.Executors;
-
 /**
  * A regular RTP session, as described in RFC3550.
- *
+ * <p/>
  * Unlike {@link SingleParticipantSession}, this session starts off with 0 remote participants.
  *
  * @author <a:mailto="bruno.carvalho@wit-software.com" />Bruno de Carvalho</a>
  */
 public class MultiParticipantSession extends AbstractRtpSession implements ParticipantEventListener {
 
-    // constructors ---------------------------------------------------------------------------------------------------
+  // constructors ---------------------------------------------------------------------------------------------------
 
-    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant) {
-        super(id, payloadType, localParticipant, null, null, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
+                                 HashedWheelTimer timer, OrderedMemoryAwareThreadPoolExecutor executor,
+                                 DatagramChannelFactory channelFactory) {
+    super(id, payloadType, localParticipant, timer, executor, channelFactory);
+  }
+
+  // AbstractRtpSession ---------------------------------------------------------------------------------------------
+
+  @Override
+  protected ParticipantDatabase createDatabase() {
+    return new DefaultParticipantDatabase(getTimer(), this.id, this);
+  }
+
+  // ParticipantEventListener ---------------------------------------------------------------------------------------
+
+  @Override
+  public void participantCreatedFromSdesChunk(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantJoinedFromControl(this, participant);
     }
+  }
 
-    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                   HashedWheelTimer timer) {
-        super(id, payloadType, localParticipant, timer, null, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  @Override
+  public void participantCreatedFromDataPacket(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantJoinedFromData(this, participant);
     }
+  }
 
-    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                   OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadType, localParticipant, null, executor, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
+  @Override
+  public void participantDeleted(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantDeleted(this, participant);
     }
-
-    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                   HashedWheelTimer timer, OrderedMemoryAwareThreadPoolExecutor executor) {
-        super(id, payloadType, localParticipant, timer, executor, new NioDatagramChannelFactory(Executors.newCachedThreadPool()));
-    }
-
-    public MultiParticipantSession(String id, int payloadType, RtpParticipant localParticipant,
-                                   HashedWheelTimer timer, OrderedMemoryAwareThreadPoolExecutor executor,
-                                   DatagramChannelFactory channelFactory) {
-        super(id, payloadType, localParticipant, timer, executor, channelFactory);
-    }
-
-    // AbstractRtpSession ---------------------------------------------------------------------------------------------
-
-    @Override
-    protected ParticipantDatabase createDatabase() {
-        return new DefaultParticipantDatabase(this.id, this);
-    }
-
-    // ParticipantEventListener ---------------------------------------------------------------------------------------
-
-    @Override
-    public void participantCreatedFromSdesChunk(RtpParticipant participant) {
-        for (RtpSessionEventListener listener : this.eventListeners) {
-            listener.participantJoinedFromControl(this, participant);
-        }
-    }
-
-    @Override
-    public void participantCreatedFromDataPacket(RtpParticipant participant) {
-        for (RtpSessionEventListener listener : this.eventListeners) {
-            listener.participantJoinedFromData(this, participant);
-        }
-    }
-
-    @Override
-    public void participantDeleted(RtpParticipant participant) {
-        for (RtpSessionEventListener listener : this.eventListeners) {
-            listener.participantDeleted(this, participant);
-        }
-    }
+  }
 }

@@ -132,11 +132,6 @@ public class SingleParticipantDatabase implements ParticipantDatabase {
         return 1;
     }
 
-    @Override
-    public void cleanup() {
-        // Nothing to do here.
-    }
-
     // getters & setters ----------------------------------------------------------------------------------------------
 
     public void setParticipant(RtpParticipant remoteParticipant) {

@@ -52,5 +52,4 @@ public interface ParticipantDatabase {
 
     int getParticipantCount();
 
-    void cleanup();
 }

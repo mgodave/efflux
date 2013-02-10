@@ -20,6 +20,9 @@ import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.packet.SdesChunk;
 import com.biasedbit.efflux.packet.SdesChunkItem;
 import com.biasedbit.efflux.util.TimeUtils;
+import org.jboss.netty.util.Timeout;
+import org.jboss.netty.util.Timer;
+import org.jboss.netty.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -65,7 +69,7 @@ public class DefaultParticipantDatabase implements ParticipantDatabase {
 
     // constructors ---------------------------------------------------------------------------------------------------
 
-    public DefaultParticipantDatabase(String id, ParticipantEventListener eventListener) {
+    public DefaultParticipantDatabase(final Timer timer, String id, ParticipantEventListener eventListener) {
         this.id = id;
         this.listener = eventListener;
 
@@ -76,6 +80,15 @@ public class DefaultParticipantDatabase implements ParticipantDatabase {
 
         this.timeoutAfterNoPacketsReceived = TIMEOUT_AFTER_NO_PACKETS_RECEIVED;
         this.timeoutAfterByeAndNoPacketsReceived = TIMEOUT_AFTER_BYE_AND_NO_PACKETS_RECEIVED;
+
+      // Add the cleaner.
+      timer.newTimeout(new TimerTask() {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+          cleanup();
+          timer.newTimeout(this, 10, TimeUnit.SECONDS);
+        }
+      }, 10, TimeUnit.SECONDS);
     }
 
     // public methods -------------------------------------------------------------------------------------------------
@@ -279,8 +292,7 @@ public class DefaultParticipantDatabase implements ParticipantDatabase {
         return this.members.size();
     }
 
-    @Override
-    public void cleanup() {
+    protected void cleanup() {
         this.lock.writeLock().lock();
         long now = TimeUtils.now();
         try {
