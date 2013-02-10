@@ -19,10 +19,7 @@ package com.biasedbit.efflux.session;
 import com.biasedbit.efflux.network.ControlChannelPipelineFactory;
 import com.biasedbit.efflux.network.DataChannelPipelineFactory;
 import com.biasedbit.efflux.packet.*;
-import com.biasedbit.efflux.participant.ParticipantDatabase;
-import com.biasedbit.efflux.participant.ParticipantOperation;
-import com.biasedbit.efflux.participant.RtpParticipant;
-import com.biasedbit.efflux.participant.RtpParticipantInfo;
+import com.biasedbit.efflux.participant.*;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import org.jboss.netty.bootstrap.ConnectionlessBootstrap;
@@ -53,11 +50,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * @author <a:mailto="bruno.carvalho@wit-software.com" />Bruno de Carvalho</a>
  */
-public abstract class AbstractRtpSession implements RtpSession, TimerTask {
+public class DefaultRtpSession implements RtpSession, TimerTask, ParticipantEventListener {
 
   // constants ------------------------------------------------------------------------------------------------------
 
-  protected static final Logger LOG = LoggerFactory.getLogger(AbstractRtpSession.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(DefaultRtpSession.class);
   protected static final String VERSION = "efflux_0.4_15092010";
 
   // configuration defaults -----------------------------------------------------------------------------------------
@@ -108,8 +105,8 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
 
   // constructors ---------------------------------------------------------------------------------------------------
 
-  public AbstractRtpSession(@Nonnull String id, int payloadType, @Nonnull RtpParticipant local, @Nonnull Timer timer,
-                            @Nonnull OrderedMemoryAwareThreadPoolExecutor executor, @Nonnull DatagramChannelFactory channelFactory) {
+  public DefaultRtpSession(@Nonnull String id, int payloadType, @Nonnull RtpParticipant local, @Nonnull Timer timer,
+                           @Nonnull OrderedMemoryAwareThreadPoolExecutor executor, @Nonnull DatagramChannelFactory channelFactory) {
 
     checkArgument((payloadType > 0) || (payloadType < 127), "PayloadType must be in range [0;127]");
     this.payloadType = payloadType;
@@ -122,7 +119,7 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     this.executor = checkNotNull(executor);
     this.timer = checkNotNull(timer);
 
-    this.participantDatabase = this.createDatabase();
+    this.participantDatabase = new DefaultParticipantDatabase(timer, id, this);
 
   }
 
@@ -502,8 +499,6 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
       packet.getSsrcList(), this.id, packet.getReasonForLeaving());
   }
 
-  protected abstract ParticipantDatabase createDatabase();
-
   protected void internalSendData(final DataPacket packet) {
     this.participantDatabase.doWithReceivers(new ParticipantOperation() {
       @Override
@@ -848,8 +843,27 @@ public abstract class AbstractRtpSession implements RtpSession, TimerTask {
     return this.sentPacketCounter.get();
   }
 
-  protected Timer getTimer() {
-    return timer;
+  // ParticipantEventListener ---------------------------------------------------------------------------------------
+
+  @Override
+  public void participantCreatedFromSdesChunk(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantJoinedFromControl(this, participant);
+    }
+  }
+
+  @Override
+  public void participantCreatedFromDataPacket(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantJoinedFromData(this, participant);
+    }
+  }
+
+  @Override
+  public void participantDeleted(RtpParticipant participant) {
+    for (RtpSessionEventListener listener : this.eventListeners) {
+      listener.participantDeleted(this, participant);
+    }
   }
 
 }

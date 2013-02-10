@@ -18,6 +18,7 @@ package com.biasedbit.efflux.participant;
 
 import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.packet.SdesChunk;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -39,7 +40,7 @@ public class DefaultParticipantDatabaseTest {
     @Before
     public void setUp() throws Exception {
         this.listener = new TestListener();
-        this.database = new DefaultParticipantDatabase("testDatabase", this.listener);
+        this.database = new DefaultParticipantDatabase(new HashedWheelTimer(), "testDatabase", this.listener);
     }
 
     @Test

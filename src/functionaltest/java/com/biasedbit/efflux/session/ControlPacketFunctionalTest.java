@@ -37,8 +37,8 @@ import static org.junit.Assert.*;
  */
 public class ControlPacketFunctionalTest {
 
-    private AbstractRtpSession session1;
-    private AbstractRtpSession session2;
+    private DefaultRtpSession session1;
+    private DefaultRtpSession session2;
 
     @After
     public void tearDown() {
