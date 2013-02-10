@@ -16,12 +16,13 @@
 
 package com.biasedbit.efflux.network;
 
-import com.biasedbit.efflux.logging.Logger;
 import com.biasedbit.efflux.packet.DataPacket;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,7 +33,7 @@ public class DataHandler extends SimpleChannelUpstreamHandler {
 
     // constants ------------------------------------------------------------------------------------------------------
 
-    private static final Logger LOG = Logger.getLogger(DataHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DataHandler.class);
 
     // internal vars --------------------------------------------------------------------------------------------------
 

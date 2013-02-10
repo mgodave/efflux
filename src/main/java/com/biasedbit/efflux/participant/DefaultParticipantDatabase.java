@@ -16,11 +16,12 @@
 
 package com.biasedbit.efflux.participant;
 
-import com.biasedbit.efflux.logging.Logger;
 import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.packet.SdesChunk;
 import com.biasedbit.efflux.packet.SdesChunkItem;
 import com.biasedbit.efflux.util.TimeUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ public class DefaultParticipantDatabase implements ParticipantDatabase {
 
     // constants ------------------------------------------------------------------------------------------------------
 
-    private static final Logger LOG = Logger.getLogger(DefaultParticipantDatabase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultParticipantDatabase.class);
     private static final int TIMEOUT_AFTER_NO_PACKETS_RECEIVED = 60;
     private static final int TIMEOUT_AFTER_BYE_AND_NO_PACKETS_RECEIVED = 5;
 

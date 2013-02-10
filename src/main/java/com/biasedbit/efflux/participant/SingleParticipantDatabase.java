@@ -16,9 +16,10 @@
 
 package com.biasedbit.efflux.participant;
 
-import com.biasedbit.efflux.logging.Logger;
 import com.biasedbit.efflux.packet.DataPacket;
 import com.biasedbit.efflux.packet.SdesChunk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.util.Arrays;
@@ -33,7 +34,7 @@ public class SingleParticipantDatabase implements ParticipantDatabase {
 
     // constants ------------------------------------------------------------------------------------------------------
 
-    private static final Logger LOG = Logger.getLogger(SingleParticipantDatabase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SingleParticipantDatabase.class);
 
     // configuration --------------------------------------------------------------------------------------------------
 

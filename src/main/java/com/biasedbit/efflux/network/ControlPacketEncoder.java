@@ -16,7 +16,6 @@
 
 package com.biasedbit.efflux.network;
 
-import com.biasedbit.efflux.logging.Logger;
 import com.biasedbit.efflux.packet.CompoundControlPacket;
 import com.biasedbit.efflux.packet.ControlPacket;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -27,6 +26,8 @@ import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -38,7 +39,7 @@ public class ControlPacketEncoder implements ChannelDownstreamHandler {
 
     // constants ------------------------------------------------------------------------------------------------------
 
-    protected static final Logger LOG = Logger.getLogger(ControlPacketEncoder.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(ControlPacketEncoder.class);
 
     // constructors ---------------------------------------------------------------------------------------------------
 

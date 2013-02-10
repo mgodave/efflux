@@ -16,12 +16,13 @@
 
 package com.biasedbit.efflux.network;
 
-import com.biasedbit.efflux.logging.Logger;
 import com.biasedbit.efflux.packet.DataPacket;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.oneone.OneToOneDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author <a href="http://bruno.biasedbit.com/">Bruno de Carvalho</a>
@@ -30,7 +31,7 @@ public class DataPacketDecoder extends OneToOneDecoder {
 
     // constants ------------------------------------------------------------------------------------------------------
 
-    protected static final Logger LOG = Logger.getLogger(OneToOneDecoder.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(OneToOneDecoder.class);
 
     // OneToOneDecoder ------------------------------------------------------------------------------------------------
 
